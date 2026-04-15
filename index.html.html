@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weddify — Room Switch Schedule</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --gold:#C9A84C; --gold-light:#E8D08A; --gold-dim:#7A5E28;
+    --ink:#0E0E0E; --ink2:#1C1C1C;
+    --s2:#1E1E1E; --s3:#252525; --s4:#2E2E2E;
+    --muted:#555; --muted2:#888;
+    --border:rgba(201,168,76,0.15); --border2:rgba(201,168,76,0.3);
+    --white:#F5F0E8; --red:#E05555;
+    --serif:'DM Serif Display',Georgia,serif;
+    --sans:'DM Sans',system-ui,sans-serif;
+    --rlg:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--ink);color:var(--white);min-height:100vh;overflow-x:hidden}
+
+  /* HEADER */
+  header{display:flex;align-items:center;justify-content:space-between;padding:18px 40px;border-bottom:.5px solid var(--border);background:var(--ink2);position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:baseline;gap:10px}
+  .logo-name{font-family:var(--serif);font-size:22px;color:var(--gold);letter-spacing:.02em}
+  .logo-sub{color:var(--muted2);font-size:12px;font-weight:300;letter-spacing:.1em;text-transform:uppercase}
+  .hdr-actions{display:flex;gap:8px;align-items:center}
+
+  .btn{font-family:var(--sans);font-size:12px;font-weight:500;padding:8px 18px;border-radius:40px;border:.5px solid var(--border2);cursor:pointer;transition:all .2s;letter-spacing:.04em;text-transform:uppercase}
+  .btn-ghost{background:transparent;color:var(--muted2)}
+  .btn-ghost:hover{background:var(--s3);color:var(--white)}
+  .btn-gold{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:600}
+  .btn-gold:hover{background:var(--gold-light);transform:translateY(-1px);box-shadow:0 4px 20px rgba(201,168,76,.3)}
+  .btn-outline{background:transparent;color:var(--gold);border-color:var(--gold-dim)}
+  .btn-outline:hover{background:rgba(201,168,76,.08)}
+  .btn-drive{display:flex;align-items:center;gap:8px}
+  .g-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0}
+  .g-dot.on{background:#4CAF50;box-shadow:0 0 8px rgba(76,175,80,.5)}
+
+  /* FILE BAR */
+  #fileBar{display:none;align-items:center;gap:12px;padding:8px 40px;background:rgba(201,168,76,.06);border-bottom:.5px solid var(--border);font-size:12px;color:var(--muted2)}
+  #fileBar.show{display:flex}
+  #fileBar strong{color:var(--gold);font-weight:500}
+  .save-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:all .2s}
+  .save-dot.dirty{background:var(--gold);box-shadow:0 0 6px rgba(201,168,76,.5)}
+
+  /* META */
+  .meta{background:var(--ink2);padding:32px 40px 28px;border-bottom:.5px solid var(--border)}
+  .meta-grid{display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 1fr;gap:20px;max-width:1100px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-dim)}
+  .field input,.field select{background:var(--s3);border:.5px solid var(--border);border-radius:6px;padding:10px 14px;font-family:var(--sans);font-size:14px;color:var(--white);outline:none;transition:border-color .2s;-webkit-appearance:none}
+  .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer}
+  .field select option{background:var(--s3)}
+  .field input:focus,.field select:focus{border-color:var(--gold-dim);background:var(--s4)}
+  .field input::placeholder{color:var(--muted)}
+
+  /* MAIN */
+  main{max-width:1200px;margin:0 auto;padding:36px 40px 80px}
+  .sec-hdr{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:.5px solid var(--border)}
+  .sec-title{font-family:var(--serif);font-size:26px;color:var(--white)}
+  .sec-count{font-family:var(--sans);font-size:13px;color:var(--muted2);margin-left:10px;font-weight:300}
+
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+  .leg-item{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted2)}
+  .leg-pip{width:8px;height:8px;border-radius:2px}
+
+  /* ZONES GRID */
+  .zones-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px}
+  .zone-card{background:var(--s2);border:.5px solid var(--border);border-radius:var(--rlg);overflow:hidden;transition:border-color .2s;animation:fadeUp .35s ease both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .zone-card:hover{border-color:var(--border2)}
+
+  .zone-head{display:flex;align-items:center;gap:12px;padding:13px 16px 11px;border-bottom:.5px solid var(--border)}
+  .z-thumb{width:40px;height:40px;border-radius:8px;background:var(--s4);border:.5px dashed var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;flex-shrink:0;transition:border-color .2s;position:relative}
+  .z-thumb:hover{border-color:var(--gold)}
+  .z-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+  .z-thumb input{display:none}
+  .z-nwrap{flex:1;min-width:0}
+  .z-name{font-family:var(--serif);font-size:16px;background:transparent;border:none;color:var(--white);outline:none;width:100%;border-bottom:1px solid transparent;padding-bottom:1px;transition:border-color .2s}
+  .z-name:focus{border-bottom-color:var(--gold-dim)}
+  .z-meta{font-size:11px;color:var(--muted2);margin-top:2px}
+  .z-del{width:26px;height:26px;border-radius:50%;background:transparent;border:.5px solid transparent;color:var(--muted);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;line-height:1}
+  .z-del:hover{background:rgba(224,85,85,.15);border-color:rgba(224,85,85,.4);color:var(--red)}
+
+  /* SWITCH TABLE */
+  .sw-table{width:100%;padding:4px 0 6px}
+  .col-lbl-row{display:grid;grid-template-columns:26px 1fr 72px 28px 28px 22px;gap:5px;padding:5px 16px 3px}
+  .col-lbl{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .col-lbl.c{text-align:center}
+
+  .sw-row{display:grid;grid-template-columns:26px 1fr 72px 28px 28px 22px;gap:5px;padding:4px 16px;align-items:center;border-radius:6px;transition:background .15s}
+  .sw-row:hover{background:var(--s3)}
+  .sw-row:hover .sw-del{opacity:1}
+
+  .sw-num{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+  .sw-inp{background:transparent;border:none;border-bottom:.5px solid transparent;color:var(--white);font-family:var(--sans);font-size:13px;outline:none;width:100%;padding:1px 0;transition:border-color .2s}
+  .sw-inp:focus{border-bottom-color:var(--gold-dim)}
+  .sw-inp::placeholder{color:var(--muted)}
+  .sw-type{background:var(--s3);border:.5px solid var(--border);border-radius:4px;color:var(--muted2);font-family:var(--sans);font-size:10px;padding:3px 4px;outline:none;cursor:pointer;-webkit-appearance:none;text-align:center;transition:border-color .2s}
+  .sw-type option{background:var(--s3)}
+  .sw-type:focus{border-color:var(--gold-dim)}
+
+  .sw-ph{width:24px;height:24px;border-radius:4px;background:var(--s4);border:.5px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;transition:border-color .2s;flex-shrink:0}
+  .sw-ph:hover{border-color:var(--gold)}
+  .sw-ph img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+  .sw-ph input{display:none}
+
+  .tog{width:28px;height:16px;background:var(--s4);border-radius:8px;position:relative;cursor:pointer;transition:background .2s;border:.5px solid var(--border);flex-shrink:0}
+  .tog.on{background:var(--gold);border-color:var(--gold)}
+  .tog::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:var(--muted2);top:1px;left:1px;transition:all .2s}
+  .tog.on::after{left:13px;background:var(--ink)}
+
+  .sw-del{width:20px;height:20px;border-radius:4px;background:transparent;border:none;color:var(--muted);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:all .15s;flex-shrink:0;line-height:1}
+  .sw-del:hover{color:var(--red);background:rgba(224,85,85,.12)}
+
+  .z-foot{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 12px;border-top:.5px solid var(--border);margin-top:4px}
+  .add-sw{font-size:11px;color:var(--gold-dim);background:none;border:none;cursor:pointer;letter-spacing:.03em}
+  .add-sw:hover{color:var(--gold)}
+  .z-note{background:transparent;border:none;color:var(--muted);font-family:var(--sans);font-size:11px;outline:none;text-align:right;width:58%;font-style:italic}
+  .z-note::placeholder{color:var(--muted)}
+
+  /* ADD ZONE BAR */
+  .add-zone-bar{display:flex;gap:10px;align-items:center;padding:16px 20px;background:var(--s2);border:.5px dashed var(--border2);border-radius:var(--rlg);cursor:pointer;transition:all .2s;color:var(--muted2);font-size:13px}
+  .add-zone-bar:hover{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.04)}
+  .azb-plus{font-size:20px;color:var(--gold-dim);line-height:1}
+
+  /* GENERATE */
+  .gen-section{margin-top:48px;background:linear-gradient(135deg,var(--s2),var(--ink2));border:.5px solid var(--border2);border-radius:var(--rlg);padding:32px 40px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;overflow:hidden}
+  .gen-section::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,.06),transparent 70%);pointer-events:none}
+  .gen-copy h2{font-family:var(--serif);font-size:24px;margin-bottom:5px}
+  .gen-copy p{font-size:13px;color:var(--muted2);line-height:1.6;max-width:460px}
+  .gen-actions{display:flex;gap:10px;flex-shrink:0;flex-wrap:wrap}
+
+  /* MODAL */
+  #modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);align-items:center;justify-content:center}
+  #modal.open{display:flex}
+  .modal-box{background:var(--s2);border:.5px solid var(--border2);border-radius:var(--rlg);padding:28px 32px;width:500px;max-width:92vw}
+  .modal-box h3{font-family:var(--serif);font-size:20px;margin-bottom:6px}
+  .modal-box p{font-size:13px;color:var(--muted2);margin-bottom:20px;line-height:1.6}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .file-list{max-height:260px;overflow-y:auto}
+  .f-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;cursor:pointer;transition:background .15s;border:.5px solid transparent}
+  .f-item:hover{background:var(--s3);border-color:var(--border)}
+  .f-name{font-size:13px;font-weight:500;flex:1}
+  .f-date{font-size:11px;color:var(--muted2)}
+
+  /* TOAST */
+  #toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--s4);border:.5px solid var(--border2);color:var(--white);padding:11px 22px;border-radius:40px;font-size:13px;opacity:0;transition:all .3s;z-index:999;pointer-events:none;white-space:nowrap}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  #reportPreview{position:fixed;left:-9999px;top:0;width:900px;background:#fff}
+
+  @media(max-width:700px){
+    header{padding:14px 20px} .meta{padding:20px} .meta-grid{grid-template-columns:1fr 1fr}
+    main{padding:20px 20px 60px} .gen-section{flex-direction:column;padding:24px}
+    .logo-sub{display:none} #fileBar{padding:8px 20px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-name">Weddify</span>
+    <span class="logo-sub">Room Switch Schedule</span>
+  </div>
+  <div class="hdr-actions">
+    <button class="btn btn-ghost" id="openFileBtn" onclick="openFilePicker()" style="display:none">Open file</button>
+    <button class="btn btn-ghost btn-drive" id="authBtn" onclick="handleAuth()">
+      <div class="g-dot" id="gDot"></div>
+      <span id="gLabel">Connect Drive</span>
+    </button>
+  </div>
+</header>
+
+<div id="fileBar">
+  <div class="save-dot" id="saveDot"></div>
+  <span>Editing: <strong id="fileName">—</strong></span>
+  <span id="saveStatus" style="color:var(--muted);font-size:11px">All changes saved</span>
+  <button class="btn btn-outline" onclick="saveSessionToDrive()" style="margin-left:auto;padding:5px 14px;font-size:11px">Save now</button>
+</div>
+
+<div class="meta">
+  <div class="meta-grid">
+    <div class="field"><label>Property / Hotel Name</label><input id="propName" placeholder="e.g. The Langham Sydney" oninput="markDirty()"></div>
+    <div class="field">
+      <label>Room Type</label>
+      <select id="roomType" onchange="markDirty()">
+        <option value="">Select type…</option>
+        <option>Lead-in</option><option>Superior</option><option>Deluxe</option>
+        <option>Premier</option><option>Junior Suite</option><option>Suite</option>
+        <option>Grand Suite</option><option>Penthouse</option><option>Villa</option><option>Presidential</option>
+      </select>
+    </div>
+    <div class="field"><label>Room Number</label><input id="roomNo" placeholder="e.g. 412" oninput="markDirty()"></div>
+    <div class="field"><label>Floor</label><input id="floor" placeholder="e.g. 4" oninput="markDirty()"></div>
+    <div class="field"><label>Completed By</label><input id="engineer" placeholder="Your name" oninput="markDirty()"></div>
+  </div>
+</div>
+
+<main>
+  <div class="legend">
+    <div class="leg-item"><div class="leg-pip" style="background:#85B7EB"></div>On / Off</div>
+    <div class="leg-item"><div class="leg-pip" style="background:#5DCAA5"></div>Dimmer</div>
+    <div class="leg-item"><div class="leg-pip" style="background:#EF9F27"></div>Scene / Mood</div>
+    <div class="leg-item"><div class="leg-pip" style="background:#ED93B1"></div>Curtain / Blind</div>
+    <div class="leg-item"><div class="leg-pip" style="background:#B4B2A9"></div>Master</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted2)">
+      <div class="tog on" style="pointer-events:none;transform:scale(.75)"></div>active
+    </div>
+  </div>
+
+  <div class="sec-hdr">
+    <div><span class="sec-title">Room zones</span><span class="sec-count" id="totals"></span></div>
+    <button class="btn btn-outline" onclick="addZone()">+ Add zone</button>
+  </div>
+
+  <div class="zones-grid" id="grid"></div>
+
+  <div class="add-zone-bar" onclick="addZone()">
+    <span class="azb-plus">+</span>
+    Add a new zone — entrance, bathroom, lounge, corridor, minibar…
+  </div>
+
+  <div class="gen-section">
+    <div class="gen-copy">
+      <h2>Generate room report</h2>
+      <p>Export a clean PDF of all zones, switch functions and photos. If Drive is connected, an editable copy is saved automatically so anyone can open and continue editing.</p>
+    </div>
+    <div class="gen-actions">
+      <button class="btn btn-ghost" onclick="doPrint()">Print / PDF</button>
+      <button class="btn btn-gold" onclick="doPDF()">Download PDF</button>
+    </div>
+  </div>
+</main>
+
+<!-- Open file modal -->
+<div id="modal">
+  <div class="modal-box">
+    <h3>Open a schedule</h3>
+    <p>Weddify schedule files saved to your Google Drive:</p>
+    <div class="file-list" id="fileList"><div style="text-align:center;padding:24px;color:var(--muted2);font-size:13px">Loading…</div></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
+  </div>
+</div>
+
+<div id="reportPreview"></div>
+<div id="toast"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
+const FOLDER   = 'Weddify Schedules';
+const EXT      = '.weddify.json';
+
+const TYPES = {
+  master:  {label:'Master',  color:'#B4B2A9'},
+  'on/off':{label:'On/Off',  color:'#85B7EB'},
+  dimmer:  {label:'Dimmer',  color:'#5DCAA5'},
+  scene:   {label:'Scene',   color:'#EF9F27'},
+  curtain: {label:'Curtain', color:'#ED93B1'},
+  other:   {label:'Other',   color:'#888'},
+};
+
+let token=null, zones=[], fileId=null, dirty=false;
+
+const DEFAULTS=[
+  {id:'entrance',name:'Entrance',photo:null,notes:'',switches:[
+    {name:'Master on/off',type:'master',active:true,photo:null},
+    {name:'Ceiling light',type:'on/off',active:true,photo:null},
+    {name:'Walkway light',type:'dimmer',active:true,photo:null},
+    {name:'Wardrobe / mood',type:'scene',active:true,photo:null},
+  ]},
+  {id:'bathroom',name:'Bathroom',photo:null,notes:'',switches:[
+    {name:'Ceiling light',type:'on/off',active:true,photo:null},
+    {name:'Mirror / vanity',type:'dimmer',active:true,photo:null},
+    {name:'Exhaust fan',type:'on/off',active:false,photo:null},
+  ]},
+  {id:'bedside_l',name:'Bedside — Left',photo:null,notes:'',switches:[
+    {name:'Master bedside',type:'master',active:true,photo:null},
+    {name:'Bedside lamp',type:'dimmer',active:true,photo:null},
+    {name:'All off',type:'master',active:true,photo:null},
+    {name:'Day curtain',type:'curtain',active:true,photo:null},
+    {name:'Night curtain',type:'curtain',active:true,photo:null},
+    {name:'Mood / scene',type:'scene',active:true,photo:null},
+  ]},
+  {id:'bedside_r',name:'Bedside — Right',photo:null,notes:'',switches:[
+    {name:'Master bedside',type:'master',active:true,photo:null},
+    {name:'Bedside lamp',type:'dimmer',active:true,photo:null},
+    {name:'All off',type:'master',active:true,photo:null},
+    {name:'Day curtain',type:'curtain',active:true,photo:null},
+    {name:'Night curtain',type:'curtain',active:true,photo:null},
+    {name:'Mood / scene',type:'scene',active:true,photo:null},
+  ]},
+  {id:'curtain',name:'Curtain Panel',photo:null,notes:'',switches:[
+    {name:'Day curtain — open',type:'curtain',active:true,photo:null},
+    {name:'Day curtain — close',type:'curtain',active:true,photo:null},
+    {name:'Night curtain — open',type:'curtain',active:true,photo:null},
+    {name:'Night curtain — close',type:'curtain',active:true,photo:null},
+  ]},
+  {id:'desk',name:'Desk / Work Area',photo:null,notes:'',switches:[
+    {name:'Desk lamp',type:'dimmer',active:true,photo:null},
+    {name:'Floor / reading light',type:'on/off',active:false,photo:null},
+  ]},
+];
+
+/* ── RENDER ── */
+function init(){zones=JSON.parse(JSON.stringify(DEFAULTS));renderAll()}
+
+function renderAll(){
+  const g=document.getElementById('grid');g.innerHTML='';
+  zones.forEach((z,i)=>{const c=buildCard(z,i);c.style.animationDelay=(i*.045)+'s';g.appendChild(c)});
+  updateTotals();
+}
+
+function updateTotals(){
+  let t=0,a=0;zones.forEach(z=>z.switches.forEach(s=>{t++;if(s.active)a++}));
+  document.getElementById('totals').textContent=`${a} active · ${t} total`;
+}
+
+function buildCard(z,zi){
+  const ac=z.switches.filter(s=>s.active).length;
+  const card=el('div','zone-card');card.id='z'+zi;
+
+  /* head */
+  const head=el('div','zone-head');
+  const thumb=el('div','z-thumb');thumb.title='Upload zone location photo';
+  if(z.photo){const i=document.createElement('img');i.src=z.photo;thumb.appendChild(i)}
+  else thumb.innerHTML='<span style="font-size:15px;color:var(--muted)">📷</span>';
+  const zfi=fileInput(e=>photoZone(e,zi));thumb.appendChild(zfi);thumb.onclick=()=>zfi.click();
+
+  const nw=el('div','z-nwrap');
+  const ni=el('input','z-name');ni.value=z.name;
+  ni.onchange=e=>{zones[zi].name=e.target.value;markDirty();updateTotals()};
+  const nm=el('div','z-meta');nm.textContent=`${ac} of ${z.switches.length} switches active`;
+  nw.appendChild(ni);nw.appendChild(nm);
+
+  const zd=el('button','z-del');zd.title='Remove zone';zd.textContent='×';
+  zd.onclick=()=>{
+    if(z.switches.length&&!confirm(`Remove "${z.name}" and all its switches?`))return;
+    zones.splice(zi,1);renderAll();markDirty();
+  };
+
+  head.appendChild(thumb);head.appendChild(nw);head.appendChild(zd);
+
+  /* col headers */
+  const ch=el('div','col-lbl-row');
+  ch.innerHTML='<div class="col-lbl">#</div><div class="col-lbl">Function</div><div class="col-lbl c">Type</div><div class="col-lbl c">📷</div><div class="col-lbl c">On</div><div class="col-lbl"></div>';
+
+  /* rows */
+  const rw=el('div');rw.id='r'+zi;
+  z.switches.forEach((sw,si)=>rw.appendChild(buildRow(sw,zi,si)));
+
+  /* foot */
+  const foot=el('div','z-foot');
+  const ab=el('button','add-sw');ab.textContent='+ Add switch';
+  ab.onclick=()=>{zones[zi].switches.push({name:'New switch',type:'on/off',active:true,photo:null});reCard(zi);markDirty()};
+  const no=el('input','z-note');no.placeholder='Zone notes…';no.value=z.notes||'';
+  no.onchange=e=>{zones[zi].notes=e.target.value;markDirty()};
+  foot.appendChild(ab);foot.appendChild(no);
+
+  const tbl=el('div','sw-table');tbl.appendChild(ch);tbl.appendChild(rw);
+  card.appendChild(head);card.appendChild(tbl);card.appendChild(foot);
+  return card;
+}
+
+function buildRow(sw,zi,si){
+  const ti=TYPES[sw.type]||TYPES.other;
+  const row=el('div','sw-row');
+
+  const num=el('div','sw-num');
+  num.style.background=ti.color+'22';num.style.color=ti.color;num.textContent=si+1;
+
+  const inp=el('input','sw-inp');inp.value=sw.name;inp.placeholder='Switch name…';
+  inp.onchange=e=>{zones[zi].switches[si].name=e.target.value;markDirty()};
+
+  const sel=document.createElement('select');sel.className='sw-type';
+  ['master','on/off','dimmer','scene','curtain','other'].forEach(t=>{
+    const o=document.createElement('option');o.value=t;o.textContent=t;
+    if(sw.type===t)o.selected=true;sel.appendChild(o);
+  });
+  sel.onchange=e=>{zones[zi].switches[si].type=e.target.value;reCard(zi);markDirty()};
+
+  const ph=el('div','sw-ph');ph.title='Upload switch photo';
+  if(sw.photo){const i=document.createElement('img');i.src=sw.photo;ph.appendChild(i)}
+  else ph.innerHTML='<span style="font-size:10px;color:var(--muted)">📷</span>';
+  const sfi=fileInput(e=>photoSwitch(e,zi,si));ph.appendChild(sfi);ph.onclick=()=>sfi.click();
+
+  const tog=el('div','tog'+(sw.active?' on':''));
+  tog.onclick=()=>{
+    zones[zi].switches[si].active=!zones[zi].switches[si].active;
+    tog.classList.toggle('on');
+    const m=document.querySelector('#z'+zi+' .z-meta');
+    if(m){const a=zones[zi].switches.filter(s=>s.active).length;m.textContent=`${a} of ${zones[zi].switches.length} switches active`}
+    updateTotals();markDirty();
+  };
+
+  /* ← DELETE SWITCH button */
+  const del=el('button','sw-del');del.title='Remove switch';del.innerHTML='&times;';
+  del.onclick=()=>{zones[zi].switches.splice(si,1);reCard(zi);markDirty()};
+
+  row.appendChild(num);row.appendChild(inp);row.appendChild(sel);
+  row.appendChild(ph);row.appendChild(tog);row.appendChild(del);
+  return row;
+}
+
+function reCard(zi){
+  const old=document.getElementById('z'+zi);
+  if(old)old.replaceWith(buildCard(zones[zi],zi));
+  updateTotals();
+}
+
+/* ── PHOTOS ── */
+function photoZone(e,zi){readImg(e,d=>{zones[zi].photo=d;reCard(zi);markDirty()})}
+function photoSwitch(e,zi,si){readImg(e,d=>{zones[zi].switches[si].photo=d;reCard(zi);markDirty()})}
+function readImg(e,cb){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>cb(ev.target.result);r.readAsDataURL(f)}
+
+/* ── ADD ZONE ── */
+function addZone(){
+  const name=prompt('Zone name (e.g. Lounge, Minibar, Corridor):');if(!name)return;
+  zones.push({id:'z'+Date.now(),name,photo:null,notes:'',switches:[{name:'Light 1',type:'on/off',active:true,photo:null}]});
+  renderAll();markDirty();
+  setTimeout(()=>{const cs=document.querySelectorAll('.zone-card');cs[cs.length-1].scrollIntoView({behavior:'smooth',block:'center'})},100);
+}
+
+/* ── DIRTY STATE ── */
+function markDirty(){
+  if(!fileId)return;
+  dirty=true;
+  document.getElementById('saveDot').classList.add('dirty');
+  document.getElementById('saveStatus').textContent='Unsaved changes';
+}
+function markClean(){
+  dirty=false;
+  document.getElementById('saveDot').classList.remove('dirty');
+  document.getElementById('saveStatus').textContent='All changes saved';
+}
+
+/* ── SESSION DATA ── */
+function getSession(){
+  return {
+    version:1,
+    meta:{
+      propName:document.getElementById('propName').value,
+      roomType:document.getElementById('roomType').value,
+      roomNo:document.getElementById('roomNo').value,
+      floor:document.getElementById('floor').value,
+      engineer:document.getElementById('engineer').value,
+    },
+    zones
+  };
+}
+function loadSession(d){
+  if(d.meta){
+    ['propName','roomType','roomNo','floor','engineer'].forEach(k=>{
+      const el=document.getElementById(k);if(el)el.value=d.meta[k]||'';
+    });
+  }
+  zones=d.zones||[];renderAll();
+}
+
+/* ── GOOGLE AUTH ── */
+function handleAuth(){
+  if(token){
+    token=null;fileId=null;
+    document.getElementById('gDot').className='g-dot';
+    document.getElementById('gLabel').textContent='Connect Drive';
+    document.getElementById('openFileBtn').style.display='none';
+    document.getElementById('fileBar').classList.remove('show');
+    showToast('Disconnected');return;
+  }
+  if(CLIENT_ID==='YOUR_GOOGLE_CLIENT_ID_HERE'){showToast('Add your Google Client ID to the file first');return}
+  google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,
+    scope:'https://www.googleapis.com/auth/drive.file',
+    callback:r=>{
+      if(r.access_token){
+        token=r.access_token;
+        document.getElementById('gDot').className='g-dot on';
+        document.getElementById('gLabel').textContent='Drive connected';
+        document.getElementById('openFileBtn').style.display='';
+        showToast('Google Drive connected ✓');
+      }
+    }
+  }).requestAccessToken();
+}
+
+/* ── DRIVE HELPERS ── */
+async function getOrMakeFolder(parentId,name){
+  const q=`name='${name.replace(/'/g,"\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`;
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,{headers:{Authorization:`Bearer ${token}`}});
+  const d=await r.json();
+  if(d.files&&d.files.length)return d.files[0].id;
+  const c=await fetch('https://www.googleapis.com/drive/v3/files',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({name,mimeType:'application/vnd.google-apps.folder',parents:[parentId]})});
+  return(await c.json()).id;
+}
+
+/* ── SAVE SESSION JSON ── */
+async function saveSessionToDrive(){
+  if(!token){showToast('Connect Google Drive first');return}
+  showToast('Saving…');
+  try{
+    const prop=document.getElementById('propName').value||'Unknown Hotel';
+    const rtype=document.getElementById('roomType').value||'Unknown Type';
+    const rno=document.getElementById('roomNo').value||'0';
+    const fname=`${prop} — ${rtype} — Room ${rno}${EXT}`;
+    const payload=JSON.stringify(getSession(),null,2);
+
+    if(fileId){
+      /* patch existing */
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{
+        method:'PATCH',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:payload
+      });
+      markClean();showToast('Saved ✓');
+    }else{
+      /* create new */
+      const base=await getOrMakeFolder('root',FOLDER);
+      const hotel=await getOrMakeFolder(base,prop);
+      const form=new FormData();
+      form.append('metadata',new Blob([JSON.stringify({name:fname,parents:[hotel]})],{type:'application/json'}));
+      form.append('file',new Blob([payload],{type:'application/json'}));
+      const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
+      const f=await res.json();
+      if(f.id){
+        fileId=f.id;
+        document.getElementById('fileName').textContent=fname.replace(EXT,'');
+        document.getElementById('fileBar').classList.add('show');
+        markClean();showToast('Saved to Drive ✓');
+      }
+    }
+  }catch(e){showToast('Save error: '+e.message);console.error(e)}
+}
+
+/* ── OPEN FILE PICKER ── */
+async function openFilePicker(){
+  if(!token){showToast('Connect Google Drive first');return}
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('fileList').innerHTML='<div style="text-align:center;padding:24px;color:var(--muted2);font-size:13px">Loading…</div>';
+  try{
+    const q=`name contains '${EXT}' and trashed=false`;
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&pageSize=40`,{headers:{Authorization:`Bearer ${token}`}});
+    const d=await r.json();
+    const list=document.getElementById('fileList');
+    if(!d.files||!d.files.length){list.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted2);font-size:13px">No saved schedules found</div>';return}
+    list.innerHTML='';
+    d.files.forEach(f=>{
+      const item=el('div','f-item');
+      const date=new Date(f.modifiedTime).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+      item.innerHTML=`<span style="font-size:18px">📄</span><span class="f-name">${f.name.replace(EXT,'')}</span><span class="f-date">${date}</span>`;
+      item.onclick=()=>loadFile(f.id,f.name);
+      list.appendChild(item);
+    });
+  }catch(e){document.getElementById('fileList').innerHTML=`<div style="color:var(--red);padding:16px;font-size:13px">Error: ${e.message}</div>`}
+}
+
+async function loadFile(id,name){
+  closeModal();showToast('Loading…');
+  try{
+    const r=await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media`,{headers:{Authorization:`Bearer ${token}`}});
+    const d=await r.json();
+    loadSession(d);
+    fileId=id;
+    document.getElementById('fileName').textContent=name.replace(EXT,'');
+    document.getElementById('fileBar').classList.add('show');
+    markClean();showToast('Schedule loaded ✓');
+  }catch(e){showToast('Load error: '+e.message)}
+}
+
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal()})
+
+/* ── REPORT HTML ── */
+function reportHTML(){
+  const prop=document.getElementById('propName').value||'Property';
+  const rtype=document.getElementById('roomType').value||'—';
+  const rno=document.getElementById('roomNo').value||'—';
+  const fl=document.getElementById('floor').value||'—';
+  const eng=document.getElementById('engineer').value||'—';
+  const date=new Date().toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'});
+  let z='';
+  zones.forEach(zo=>{
+    const zi=zo.photo?`<img style="width:60px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #ddd" src="${zo.photo}">`:`<div style="width:60px;height:60px;border-radius:6px;background:#eee;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;font-size:18px">📷</div>`;
+    let rows='';
+    zo.switches.forEach((sw,i)=>{
+      const ti=TYPES[sw.type]||TYPES.other;
+      const pi=sw.photo?`<img style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid #ddd" src="${sw.photo}">`:`<div style="width:32px;height:32px;background:#f5f5f5;border-radius:4px;border:1px dashed #ddd"></div>`;
+      rows+=`<tr><td style="color:#888;font-size:11px">${i+1}</td><td>${pi}</td><td style="font-weight:500">${sw.name}</td><td><span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;text-transform:uppercase;background:${ti.color}22;color:${ti.color}">${ti.label}</span></td><td style="color:${sw.active?'#2E7D32':'#aaa'};font-weight:${sw.active?600:400}">${sw.active?'✓ Active':'—'}</td></tr>`;
+    });
+    const n=zo.notes?`<div style="font-size:11px;color:#888;font-style:italic;margin-top:6px">Notes: ${zo.notes}</div>`:'';
+    z+=`<div style="margin-bottom:32px;break-inside:avoid"><div style="display:flex;align-items:center;gap:12px;background:#F8F5EE;padding:10px 14px;border-radius:8px;margin-bottom:12px">${zi}<div style="font-family:'DM Serif Display',serif;font-size:18px;color:#1C1C1C;flex:1">${zo.name}</div><div style="font-size:12px;color:#888">${zo.switches.filter(s=>s.active).length} active</div></div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${['#','Photo','Function','Type','Status'].map(h=>`<th style="background:#F0ECE0;color:#777;font-weight:500;text-transform:uppercase;letter-spacing:.06em;font-size:10px;padding:6px 10px;text-align:left">${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>${n}</div>`;
+  });
+  return`<div style="border-bottom:2px solid #C9A84C;padding-bottom:20px;margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-family:'DM Serif Display',serif;font-size:28px;color:#C9A84C">Weddify</div><div style="font-size:13px;color:#888;margin-top:4px">Room Switch Schedule</div></div><div style="font-size:12px;color:#555;text-align:right;line-height:1.8"><strong>${prop}</strong><br>${rtype} · Room ${rno} · Floor ${fl}<br>Completed by: ${eng}<br>Date: ${date}</div></div>${z}<div style="margin-top:40px;border-top:.5px solid #ddd;padding-top:14px;display:flex;justify-content:space-between;font-size:10px;color:#aaa"><span>Weddify — Hospitality Control Scheduling</span><span>Generated ${date}</span></div>`;
+}
+
+/* ── PRINT ── */
+function doPrint(){
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Switch Schedule</title><link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"><style>*{box-sizing:border-box}body{font-family:'DM Sans',sans-serif;padding:40px 52px;color:#111}</style></head><body>${reportHTML()}</body></html>`);
+  w.document.close();setTimeout(()=>w.print(),800);
+}
+
+/* ── PDF ── */
+async function doPDF(){
+  showToast('Building PDF…');
+  const pv=document.getElementById('reportPreview');
+  pv.innerHTML=reportHTML();
+  pv.style.cssText='position:fixed;left:-9999px;top:0;width:900px;background:#fff;color:#111;font-family:sans-serif;padding:48px 52px;line-height:1.5;';
+  await new Promise(r=>setTimeout(r,400));
+  try{
+    const canvas=await html2canvas(pv,{scale:1.5,useCORS:true,backgroundColor:'#fff'});
+    const img=canvas.toDataURL('image/jpeg',.92);
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF('p','mm','a4');
+    const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight();
+    const ih=(canvas.height*pw)/canvas.width;
+    let pos=0,rem=ih;
+    while(rem>0){pdf.addImage(img,'JPEG',0,pos,pw,ih);rem-=ph;pos-=ph;if(rem>0)pdf.addPage()}
+    const prop=document.getElementById('propName').value||'hotel';
+    const rno=document.getElementById('roomNo').value||'0';
+    pdf.save(`weddify-${prop.replace(/\s+/g,'-')}-room${rno}.pdf`);
+    showToast('PDF downloaded ✓');
+    if(token){savePDFtoDrive(pdf,prop,rno);saveSessionToDrive()}
+  }catch(e){showToast('PDF error: '+e.message);console.error(e)}
+  pv.innerHTML='';
+}
+
+async function savePDFtoDrive(pdf,prop,rno){
+  try{
+    const base=await getOrMakeFolder('root',FOLDER);
+    const hotel=await getOrMakeFolder(base,prop);
+    const rtype=document.getElementById('roomType').value||'Unknown Type';
+    const rtFolder=await getOrMakeFolder(hotel,rtype);
+    const blob=pdf.output('blob');
+    const fname=`switch-schedule-room${rno}.pdf`;
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify({name:fname,parents:[rtFolder]})],{type:'application/json'}));
+    form.append('file',blob);
+    await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
+  }catch(e){console.error(e)}
+}
+
+/* ── UTILS ── */
+function el(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e}
+function fileInput(onchange){const i=document.createElement('input');i.type='file';i.accept='image/*';i.onchange=onchange;i.style.display='none';return i}
+
+let tt=null;
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+init();
+</script>
+</body>
+</html>
