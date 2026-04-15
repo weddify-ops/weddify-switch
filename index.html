@@ -170,6 +170,9 @@
   </div>
   <div class="hdr-actions">
     <button class="btn btn-ghost" id="openFileBtn" onclick="openFilePicker()" style="display:none">Open file</button>
+    <button class="btn btn-outline" id="saveBtn" onclick="saveSessionToDrive()" style="display:none">
+      <span id="saveBtnLabel">Save to Drive</span>
+    </button>
     <button class="btn btn-ghost btn-drive" id="authBtn" onclick="handleAuth()">
       <div class="g-dot" id="gDot"></div>
       <span id="gLabel">Connect Drive</span>
@@ -253,7 +256,7 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
-const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID_HERE';
+const CLIENT_ID = '126822102868-0nh2q2qvvvs67lv7r2lsooavpp99leev.apps.googleusercontent.com';
 const FOLDER   = 'Weddify Schedules';
 const EXT      = '.weddify.json';
 
@@ -429,15 +432,23 @@ function addZone(){
 
 /* ── DIRTY STATE ── */
 function markDirty(){
-  if(!fileId)return;
   dirty=true;
   document.getElementById('saveDot').classList.add('dirty');
   document.getElementById('saveStatus').textContent='Unsaved changes';
+  const sb=document.getElementById('saveBtn');
+  if(sb.style.display!=='none'){
+    sb.classList.remove('btn-outline');sb.classList.add('btn-gold');
+    document.getElementById('saveBtnLabel').textContent='Save to Drive';
+  }
 }
 function markClean(){
   dirty=false;
   document.getElementById('saveDot').classList.remove('dirty');
   document.getElementById('saveStatus').textContent='All changes saved';
+  const sb=document.getElementById('saveBtn');
+  sb.classList.remove('btn-gold');sb.classList.add('btn-outline');
+  document.getElementById('saveBtnLabel').textContent='Saved ✓';
+  setTimeout(()=>{if(!dirty)document.getElementById('saveBtnLabel').textContent='Save to Drive'},2000);
 }
 
 /* ── SESSION DATA ── */
@@ -470,6 +481,7 @@ function handleAuth(){
     document.getElementById('gDot').className='g-dot';
     document.getElementById('gLabel').textContent='Connect Drive';
     document.getElementById('openFileBtn').style.display='none';
+    document.getElementById('saveBtn').style.display='none';
     document.getElementById('fileBar').classList.remove('show');
     showToast('Disconnected');return;
   }
@@ -483,6 +495,7 @@ function handleAuth(){
         document.getElementById('gDot').className='g-dot on';
         document.getElementById('gLabel').textContent='Drive connected';
         document.getElementById('openFileBtn').style.display='';
+        document.getElementById('saveBtn').style.display='';
         showToast('Google Drive connected ✓');
       }
     }
